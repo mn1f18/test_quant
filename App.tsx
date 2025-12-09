@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MarketDataPoint, Position, Order, OrderStatus } from './types';
 import { REAL_MARKET_DATA, MOCK_POSITIONS, BACKTEST_RESULTS, KEY_FACTORS, SIMULATION_DATA } from './constants';
@@ -21,7 +20,8 @@ import {
   Scale,
   Container,
   LineChart,
-  Globe
+  Globe,
+  Zap
 } from 'lucide-react';
 
 type ViewState = 'DASHBOARD' | 'MONITOR' | 'INVENTORY' | 'SIMULATION';
@@ -110,7 +110,7 @@ const App: React.FC = () => {
               onClick={() => setCurrentView('SIMULATION')}
               className={`px-3 py-1 text-xs font-mono border rounded-sm transition-colors flex items-center gap-2 ${currentView === 'SIMULATION' ? 'bg-terminal-panel border-terminal-border text-white' : 'border-transparent text-gray-500 hover:text-white'}`}
             >
-              <LineChart size={14} /> 蒙特卡洛模拟 (SIM)
+              <Zap size={14} /> 情景推演 (SCENARIO)
             </button>
           </nav>
         </div>
@@ -119,7 +119,8 @@ const App: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
               MARKET OPEN
            </div>
-           <div className="text-gray-400">2026-10-27 <span className="text-white">{currentTime.toLocaleTimeString()}</span></div>
+           {/* Updated date to 2025-12-09 */}
+           <div className="text-gray-400">2025-12-09 <span className="text-white">{currentTime.toLocaleTimeString()}</span></div>
            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700 cursor-pointer hover:bg-gray-700">
              <Menu size={16} />
            </div>
@@ -127,10 +128,10 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="p-2 md:p-4 max-w-[1920px] mx-auto w-full flex-1 flex flex-col">
+      <main className="p-2 md:p-4 max-w-[1920px] mx-auto w-full flex-1 flex flex-col h-[calc(100vh-48px)] overflow-hidden">
         
         {currentView === 'DASHBOARD' && (
-          <div className="grid grid-cols-12 gap-4 flex-1">
+          <div className="grid grid-cols-12 gap-4 flex-1 overflow-y-auto pr-1">
             {/* LEFT COLUMN: Sidebar / Factors (2 Cols) */}
             <aside className="col-span-12 md:col-span-2 flex flex-col gap-4">
               {/* Strategy Stats (Advanced) */}
@@ -184,12 +185,12 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Fundamental Factors */}
-              <div className="bg-terminal-panel border border-terminal-border rounded-sm p-3">
-                <h3 className="text-xs text-gray-500 font-mono mb-3 uppercase flex items-center gap-2">
+              {/* Fundamental Factors - SCROLLABLE NOW */}
+              <div className="bg-terminal-panel border border-terminal-border rounded-sm p-3 flex-1 min-h-[300px] flex flex-col">
+                <h3 className="text-xs text-gray-500 font-mono mb-3 uppercase flex items-center gap-2 shrink-0">
                   <CloudLightning size={14} /> 产业基本面 (Supply)
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
                     {fundamentalFactors.map((f, i) => (
                       <div key={i} className="border-b border-gray-800 pb-2 last:border-0 last:pb-0">
                           <div className="flex justify-between items-center text-[10px] text-gray-400 mb-1">
@@ -223,7 +224,7 @@ const App: React.FC = () => {
               <PriceChart data={marketData} />
 
               {/* AI Insight & Positions Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 min-h-[300px]">
                 
                 {/* Simulation Panel (Small Preview) */}
                 <div className="md:col-span-3">
@@ -238,7 +239,7 @@ const App: React.FC = () => {
                   <h3 className="text-terminal-accent text-xs font-bold font-mono uppercase mb-2 flex items-center gap-2 relative z-10">
                     <BrainCircuit size={16} /> MooketQUANT 现货策略分析 (AI Strategy)
                   </h3>
-                  <div className="bg-black/40 p-3 border-l-2 border-terminal-accent text-sm font-mono leading-relaxed text-gray-300 whitespace-pre-wrap relative z-10 h-[150px] overflow-y-auto">
+                  <div className="bg-black/40 p-3 border-l-2 border-terminal-accent text-sm font-mono leading-relaxed text-gray-300 whitespace-pre-wrap relative z-10 h-[150px] overflow-y-auto custom-scrollbar">
                     {aiAnalysis}
                   </div>
                 </div>
@@ -314,7 +315,7 @@ const App: React.FC = () => {
                 <h3 className="text-xs text-gray-500 font-mono mt-6 mb-3 uppercase flex items-center gap-2">
                   <History size={14} /> 最近交易 (Flow)
                 </h3>
-                <div className="space-y-2 overflow-y-auto max-h-[200px]">
+                <div className="space-y-2 overflow-y-auto max-h-[200px] custom-scrollbar">
                   {orders.map(order => (
                     <div key={order.id} className="flex justify-between items-center text-xs border-b border-gray-800 pb-2">
                       <div>
