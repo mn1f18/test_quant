@@ -1,5 +1,7 @@
 
 
+
+
 import { MarketDataPoint, Position, CutType, BacktestResult, Factor, ScenarioEvent, Warehouse, MonitorMetric, ChartSeries, SimulationData, InventoryDetail, CalculationParameterSet, MarketPriceSeries } from './types';
 
 // ... (Keep existing Chart/Market Data Constants) ...
@@ -444,7 +446,9 @@ export const MOCK_MARKET_PRICES: MarketPriceSeries[] = [
   { SKU_Code: 'N_006', Product_Name: '冷冻去骨牛前腱肉', Est_Selling_Price_RMB_Per_KG: 0, Price_Date: '2025-12-09' },
   { SKU_Code: 'N_007', Product_Name: '冷冻去骨牛板腱', Est_Selling_Price_RMB_Per_KG: 0, Price_Date: '2025-12-09' },
   // Whole Container Price
-  { SKU_Code: 'AMCU9399445', Product_Name: 'AMCU9399445', Est_Selling_Price_RMB_Per_KG: 49.00, Price_Date: '2025-12-08' }
+  { SKU_Code: 'AMCU9399445', Product_Name: 'AMCU9399445', Est_Selling_Price_RMB_Per_KG: 49.00, Price_Date: '2025-12-08' },
+  // Spot Purchase Container Price
+  { SKU_Code: 'CNTR-SPOT-888', Product_Name: 'CNTR-SPOT-888', Est_Selling_Price_RMB_Per_KG: 45.00, Price_Date: '2025-12-10' }
 ];
 
 // Table 3: Inventory Detail (Updated to match Python Script)
@@ -614,6 +618,61 @@ export const MOCK_INVENTORY_DETAILS: InventoryDetail[] = [
     Factory_Code: 'SIF504',
     Port: '上海',
     Cold_Storage: '东方',
-    Payment_Floor: 150000 // Added as per requirement V4.01
+    Payment_Floor: 150000, // Added as per requirement V4.01
+    Capital_Countdown_Days: 120 // Added as per requirement V4.02
+  },
+  // ==============================
+  // NEW SPOT PURCHASE EXAMPLE V4.02
+  // ==============================
+  {
+    Inventory_SKU_ID: 'INV-2001-SPOT',
+    Supplier_Contract_ID: 'SPOT-BUY-001',
+    Container_ID: 'CNTR-SPOT-888',
+    SKU_Code: 'SIF385_BRISKET',
+    Product_Name: '冷冻牛腩 (SIF385)',
+    Pieces: 1200,
+    Weight_KG: 26000,
+    Parameter_Set_ID: 1,
+    Funder_ID: '东方',
+    // Spot Mode Config:
+    Spot_Price_RMB_Per_KG: 0, // Set to 0 to hide financial details in UI
+    Future_Price_USD_Per_KG: 0, // Ignored
+    Future_Ref_FX_USD_CNY: 0,   // Ignored
+    
+    Shipping_Date: '', // Empty
+    ETA_Date: '',      // Empty
+    Storage_Entry_Date: '2025-12-10', // Direct Entry
+    
+    Country: '巴西',
+    Factory_Code: 'SIF385',
+    Port: '上海',
+    Cold_Storage: '东方',
+    Payment_Floor: 0,
+    Capital_Countdown_Days: 0 // Clear countdown for item
+  },
+  // We also need a Summary record for the spot container for consistency in the UI view aggregation logic
+  {
+    Inventory_SKU_ID: 'INV-2001-SPOT-WHOLE',
+    Supplier_Contract_ID: 'SPOT-BUY-001',
+    Container_ID: 'CNTR-SPOT-888',
+    SKU_Code: 'CNTR-SPOT-888', // Summary
+    Product_Name: 'CNTR-SPOT-888 (现货采购)',
+    Pieces: 1200,
+    Weight_KG: 26000,
+    Parameter_Set_ID: 1,
+    Funder_ID: '东方',
+    Spot_Price_RMB_Per_KG: 42.00,
+    Future_Price_USD_Per_KG: 0,
+    Future_Ref_FX_USD_CNY: 0,
+    Shipping_Date: '',
+    ETA_Date: '',
+    Storage_Entry_Date: '2025-12-10',
+    Country: '巴西',
+    Factory_Code: 'SIF385',
+    Port: '上海',
+    Cold_Storage: '东方',
+    Payment_Floor: 0,
+    Capital_Countdown_Days: 100
   }
 ];
+

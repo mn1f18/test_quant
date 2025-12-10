@@ -1,4 +1,5 @@
 
+
 // Enums
 export enum CutType {
   CORE_SUPPLY = '核心供应 (Key)', // e.g., Brisket for key clients
@@ -169,11 +170,15 @@ export interface InventoryDetail {
   Parameter_Set_ID: number; // FK
   Funder_ID: string; // 'Oriental', etc.
   
+  // Future Mode
   Future_Price_USD_Per_KG: number;
   Future_Ref_FX_USD_CNY: number;
   
-  Shipping_Date: string; // YYYY-MM-DD
-  ETA_Date: string;      // YYYY-MM-DD (Est Time of Arrival)
+  // Spot Mode (New V4.02)
+  Spot_Price_RMB_Per_KG?: number | null; 
+
+  Shipping_Date: string; // YYYY-MM-DD (Can be empty for Spot)
+  ETA_Date: string;      // YYYY-MM-DD (Can be empty for Spot)
   Storage_Entry_Date: string | null; // Actual Entry Date
   
   Country: string;
@@ -183,12 +188,15 @@ export interface InventoryDetail {
 
   // New Field V4.01
   Payment_Floor?: number; // 应付扣减额 (RMB)
+  
+  // New Field V4.02
+  Capital_Countdown_Days?: number | null; // 资金方要求的倒计时
 }
 
 // Derived/Calculated Object (For UI Display)
 export interface CalculatedInventoryItem extends InventoryDetail {
   // Status
-  Goods_Status: '期货 (Future)' | '半期 (Semi)' | '现货 (Spot)';
+  Goods_Status: '期货 (Future)' | '半期 (Semi)' | '现货 (Spot)' | '待入库 (Pending)';
   Storage_Days: number;
   
   // Costs

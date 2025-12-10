@@ -1,9 +1,11 @@
 
+
+
 import React, { useState, useMemo } from 'react';
 import { InventoryDetail, CalculationParameterSet, MarketPriceSeries, CalculatedInventoryItem } from '../types';
 import { MOCK_INVENTORY_DETAILS, DEFAULT_PARAMETER_SETS, MOCK_MARKET_PRICES } from '../constants';
 import { calculateInventoryItem } from '../services/inventoryLogic';
-import { Settings, ChevronDown, ChevronRight, Calculator, DollarSign, Wallet, AlertCircle, Edit2, X, Check, Package, MapPin, Calendar, Warehouse, Tag, Clock } from 'lucide-react';
+import { Settings, ChevronDown, ChevronRight, Calculator, DollarSign, Wallet, AlertCircle, Edit2, X, Check, Package, MapPin, Calendar, Warehouse, Tag, Clock, Hourglass } from 'lucide-react';
 
 // --- Types Helper ---
 type GroupedContainer = {
@@ -25,6 +27,7 @@ type GroupedContainer = {
   paramSetId: number;
   summaryItem?: CalculatedInventoryItem; // The whole container summary record if it exists
   floor?: number; // Configured Payment Floor
+  countdown?: number | null; // Funding Countdown
 };
 
 interface InventoryViewProps {
@@ -126,10 +129,12 @@ const InventoryEditor: React.FC<{
   onUpdate: (updated: Partial<InventoryDetail>) => void;
 }> = ({ isOpen, onClose, inventoryItem, onUpdate }) => {
   const [floor, setFloor] = useState<number>(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   React.useEffect(() => {
     if (inventoryItem) {
       setFloor(inventoryItem.Payment_Floor || 0);
+      setCountdown(inventoryItem.Capital_Countdown_Days || null);
     }
   }, [inventoryItem]);
 
@@ -164,12 +169,28 @@ const InventoryEditor: React.FC<{
                </div>
                <p className="mt-1 text-[9px] text-gray-600">该金额将直接从"预计应付货款"中扣除。</p>
            </label>
-           
-           {/* Add more fields here if needed later (e.g. Price USD) */}
+
+           <label className="block">
+               <span className="block mb-1 text-white">资金期限倒计时 (Days)</span>
+               <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    step="10" 
+                    value={countdown || ''} 
+                    onChange={e => setCountdown(e.target.value ? parseFloat(e.target.value) : null)} 
+                    className="w-full bg-black border border-gray-700 p-2 text-white text-right font-bold" 
+                    placeholder="None"
+                  />
+                  <span className="text-gray-500">d</span>
+               </div>
+           </label>
         </div>
 
         <div className="mt-6 flex justify-end">
-           <button onClick={() => { onUpdate({ Payment_Floor: floor }); onClose(); }} className="bg-terminal-accent text-black font-bold px-4 py-2 rounded flex items-center gap-2 text-xs">
+           <button 
+             onClick={() => { onUpdate({ Payment_Floor: floor, Capital_Countdown_Days: countdown }); onClose(); }} 
+             className="bg-terminal-accent text-black font-bold px-4 py-2 rounded flex items-center gap-2 text-xs"
+           >
               <Check size={16} /> 更新 (Update)
            </button>
         </div>
@@ -237,7 +258,8 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
                  totalProfit: 0,
                  paramSetId: containerParams[item.Container_ID] || item.Parameter_Set_ID,
                  summaryItem: undefined,
-                 floor: 0
+                 floor: 0,
+                 countdown: null
              });
         }
         const group = map.get(item.Container_ID)!;
@@ -247,6 +269,7 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
         if (item.SKU_Code === item.Container_ID) {
             group.summaryItem = item;
             group.floor = item.Payment_Floor || 0;
+            group.countdown = item.Capital_Countdown_Days;
             // We don't continue to aggregate it normally if we are going to use it as source of truth later
             return;
         }
@@ -319,7 +342,6 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
           setShowInventoryEditor(true);
       } else {
           // If no summary item, maybe create one or show error. 
-          // For this mock, we assume Summary Item exists as per data structure.
           console.warn("No summary item found for editing");
       }
   };
@@ -336,14 +358,20 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
       const group = groupedData.find(g => g.containerId === containerId);
       if (!group) return null;
       const refItem = group.summaryItem || group.items[0];
+      
+      const isSpot = !!refItem.Spot_Price_RMB_Per_KG;
+
       return {
-          ship: refItem.Shipping_Date,
-          eta: refItem.ETA_Date,
+          ship: refItem.Shipping_Date || '-',
+          eta: refItem.ETA_Date || '-',
           entry: refItem.Storage_Entry_Date || '-',
           storage: refItem.Cold_Storage,
           factory: refItem.Factory_Code,
-          priceUsd: refItem.Future_Price_USD_Per_KG, // This is usually USD/Ton
-          fx: refItem.Future_Ref_FX_USD_CNY
+          priceUsd: refItem.Future_Price_USD_Per_KG, // Future Price
+          fx: refItem.Future_Ref_FX_USD_CNY,
+          isSpot,
+          spotPrice: refItem.Spot_Price_RMB_Per_KG,
+          countdown: group.countdown
       };
   };
 
@@ -436,14 +464,22 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
                                  <div className="text-[10px] text-gray-500">{group.contractId} | {group.country}</div>
                               </td>
                               <td className="p-3">
-                                 <div className="text-terminal-accent">{group.funderId}</div>
+                                 <div className="text-terminal-accent flex items-center gap-2">
+                                     {group.funderId}
+                                     {/* Funding Countdown Badge */}
+                                     {group.countdown != null && (
+                                         <span className={`flex items-center gap-0.5 text-[9px] px-1 rounded border ${group.countdown < 30 ? 'border-red-500 text-red-500' : 'border-gray-600 text-gray-400'}`}>
+                                             <Hourglass size={8} /> {group.countdown}d
+                                         </span>
+                                     )}
+                                 </div>
                                  <span 
                                      onMouseEnter={(e) => {
                                          const rect = e.currentTarget.getBoundingClientRect();
                                          setHoveredContainer({ id: group.containerId, x: rect.left, y: rect.top });
                                      }}
                                      onMouseLeave={() => setHoveredContainer(null)}
-                                     className={`cursor-help px-1.5 py-0.5 rounded text-[10px] ${group.status.includes('现货') ? 'bg-green-900 text-green-200' : 'bg-blue-900 text-blue-200'}`}
+                                     className={`cursor-help px-1.5 py-0.5 rounded text-[10px] ${group.status.includes('现货') ? 'bg-green-900 text-green-200' : group.status.includes('Pending') ? 'bg-gray-800 text-gray-300' : 'bg-blue-900 text-blue-200'}`}
                                  >
                                     {group.status}
                                  </span>
@@ -524,12 +560,11 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
                                            <tbody className="divide-y divide-gray-800/50">
                                                {group.items.map(item => {
                                                    const isWhole = item.SKU_Code === item.Container_ID;
-                                                   // Use user requested "Empty" logic for individual items if data is 0
-                                                   const isEmptyData = !isWhole && (item.Estimated_Cost_RMB_Per_KG < 10 || item.Estimated_Profit_RMB === 0);
+                                                   const isSpotItem = !!item.Spot_Price_RMB_Per_KG;
+                                                   // Use user requested "Empty" logic for individual items if data is 0 OR it is a spot item (redundant)
+                                                   const isEmptyData = !isWhole && (item.Estimated_Cost_RMB_Per_KG < 10 || item.Estimated_Profit_RMB === 0 || isSpotItem);
 
                                                    // For Net Cash Display:
-                                                   // Standard Logic: Net Cash = Est. Net Cash (Receivable - Gross Payable)
-                                                   // Whole Container Logic: Net Cash = (Receivable - (Gross Payable - Floor)) = Est. Net Cash + Floor
                                                    const floor = group.summaryItem?.Payment_Floor || 0;
                                                    const displayNetCash = isWhole ? item.Estimated_Net_Cash_RMB + floor : item.Estimated_Net_Cash_RMB;
 
@@ -543,7 +578,6 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
                                                            <td className="py-2 text-right text-gray-400">{item.Storage_Days}</td>
                                                            <td className="py-2 text-right">{item.Weight_KG.toFixed(1)}</td>
                                                            
-                                                           {/* Conditional Rendering for Empty Data */}
                                                            <td className="py-2 text-right text-red-400/80">
                                                               {isEmptyData ? '-' : `¥${(item.Daily_Storage_Cost_RMB + item.Daily_Interest_Cost_RMB).toFixed(1)}`}
                                                            </td>
@@ -608,14 +642,37 @@ export const InventoryView: React.FC<InventoryViewProps> = () => {
                          <span className="text-white">{logisticsData.factory}</span>
                      </div>
                      <div className="border-t border-gray-800 my-1 pt-1"></div>
-                     <div className="flex justify-between">
-                         <span className="text-gray-500 flex items-center gap-1"><DollarSign size={10} /> 期货价 (Price)</span>
-                         <span className="text-terminal-accent">${logisticsData.priceUsd.toLocaleString()} /ton</span>
-                     </div>
-                     <div className="flex justify-between">
-                         <span className="text-gray-500 flex items-center gap-1"><Calculator size={10} /> 汇率 (FX)</span>
-                         <span className="text-white">{logisticsData.fx.toFixed(4)}</span>
-                     </div>
+                     
+                     {/* Conditional Display for Spot vs Future */}
+                     {logisticsData.isSpot ? (
+                         <>
+                             <div className="flex justify-between">
+                                 <span className="text-gray-500 flex items-center gap-1"><DollarSign size={10} /> 现货成本 (Spot Cost)</span>
+                                 <span className="text-terminal-accent">¥{logisticsData.spotPrice?.toFixed(2)}/kg</span>
+                             </div>
+                             <div className="flex justify-between text-gray-500 italic">
+                                 <span>(Direct Purchase - No FX)</span>
+                             </div>
+                         </>
+                     ) : (
+                         <>
+                             <div className="flex justify-between">
+                                 <span className="text-gray-500 flex items-center gap-1"><DollarSign size={10} /> 期货价 (Price)</span>
+                                 <span className="text-terminal-accent">${logisticsData.priceUsd.toLocaleString()} /ton</span>
+                             </div>
+                             <div className="flex justify-between">
+                                 <span className="text-gray-500 flex items-center gap-1"><Calculator size={10} /> 汇率 (FX)</span>
+                                 <span className="text-white">{logisticsData.fx.toFixed(4)}</span>
+                             </div>
+                         </>
+                     )}
+                     
+                     {logisticsData.countdown != null && (
+                         <div className="flex justify-between mt-2 pt-1 border-t border-gray-800">
+                             <span className="text-gray-500 flex items-center gap-1"><Hourglass size={10} /> 资金限期 (Deadline)</span>
+                             <span className={`${logisticsData.countdown < 30 ? 'text-red-500 font-bold' : 'text-white'}`}>{logisticsData.countdown} days left</span>
+                         </div>
+                     )}
                  </div>
              </div>
          )}
